@@ -248,174 +248,112 @@
     </div>
   
  <script>
-// CMU Dictionary cache
-let cmuDict = null;
-
-// Load CMU Dictionary from CDN
-async function loadCMUDictionary() {
-    if (cmuDict) return cmuDict;
+// 1. Fix the getWordStress function to handle CMU dictionary properly
+function getWordStress(word) {
+    // Clean the word - remove punctuation and convert to uppercase
+    const cleanWord = word.replace(/[^\w]/g, '').toUpperCase();
     
-    try {
-        const response = await fetch('https://cdn.jsdelivr.net/npm/cmu-pronouncing-dictionary@1.4.0/dict.json');
-        cmuDict = await response.json();
-        return cmuDict;
-    } catch (error) {
-        console.warn('Failed to load CMU dictionary, using fallback');
-        return null;
+    // Try to find in CMU dictionary
+    const phonemes = cmuDict[cleanWord];
+    
+    if (phonemes && phonemes.length > 0) {
+        // Extract stress pattern from phonemes
+        const stressPattern = [];
+        
+        for (const phoneme of phonemes) {
+            // Check if phoneme ends with stress marker (0, 1, or 2)
+            const stressMatch = phoneme.match(/[012]$/);
+            if (stressMatch) {
+                const stress = parseInt(stressMatch[0]);
+                stressPattern.push(stress);
+            }
+        }
+        
+        // Convert CMU stress to your format
+        return stressPattern.map(stress => {
+            if (stress === 1) return 'primary';
+            if (stress === 2) return 'secondary'; 
+            return 'unstressed';
+        });
     }
+    
+    // Fallback: improved stress assignment
+    return getDefaultStressPattern(word);
 }
 
-// Extract stress pattern from CMU pronunciation
-function getStressPattern(pronunciation) {
-    if (!pronunciation) return [];
+// 2. Improved fallback stress pattern
+function getDefaultStressPattern(word) {
+    const syllableCount = countSyllables(word);
+    const stresses = new Array(syllableCount).fill('unstressed');
     
-    const phonemes = pronunciation.split(' ');
-    const stressPattern = [];
-    
-    for (const phoneme of phonemes) {
-        if (phoneme.match(/\d$/)) {
-            stressPattern.push(parseInt(phoneme.slice(-1)));
+    if (syllableCount === 1) {
+        stresses[0] = 'primary';
+    } else if (syllableCount === 2) {
+        // Common 2-syllable patterns
+        if (word.match(/^(un|re|pre|dis|mis|over|under)/i)) {
+            stresses[1] = 'primary'; // Prefix + root
+        } else if (word.match(/(ing|ed|er|est|ly|ness|ment|tion|sion)$/i)) {
+            stresses[0] = 'primary'; // Root + suffix
+        } else {
+            stresses[0] = 'primary'; // Default first syllable
+        }
+    } else if (syllableCount >= 3) {
+        // For 3+ syllables, typically stress the antepenultimate or penultimate
+        if (word.match(/(tion|sion|ic|ical|ity|ify|ate)$/i)) {
+            stresses[syllableCount - 3] = 'primary'; // Antepenultimate
+        } else {
+            stresses[syllableCount - 2] = 'primary'; // Penultimate
         }
     }
     
-    return stressPattern.length > 0 ? stressPattern : [0];
+    return stresses;
 }
 
-// Fallback syllable counting for unknown words
-function getFallbackStressPattern(word) {
-    const vowels = /[aeiouyAEIOUY]/;
-    let syllables = 0;
-    let prevWasVowel = false;
+// 3. Improved syllable counting
+function countSyllables(word) {
+    word = word.toLowerCase();
     
-    for (let i = 0; i < word.length; i++) {
-        const isVowel = vowels.test(word[i]);
-        if (isVowel && !prevWasVowel) syllables++;
-        prevWasVowel = isVowel;
+    // Handle special cases
+    if (word.length <= 3) return 1;
+    
+    // Remove common suffixes that don't add syllables
+    word = word.replace(/(?:es|ed)$/, '');
+    
+    // Count vowel groups
+    const vowelGroups = word.match(/[aeiouy]+/g);
+    let syllableCount = vowelGroups ? vowelGroups.length : 1;
+    
+    // Subtract for silent 'e' at end
+    if (word.endsWith('e')) {
+        syllableCount--;
     }
     
-    syllables = Math.max(1, syllables);
+    // Handle special patterns
+    if (word.match(/[td]ed$/)) syllableCount++; // -ted, -ded endings
+    if (word.match(/ism$/)) syllableCount++; // -ism endings
     
-    // Simple stress heuristic: primary stress on first syllable for multi-syllable words
-    const pattern = [];
-    for (let i = 0; i < syllables; i++) {
-        pattern.push(i === 0 && syllables > 1 ? 1 : 0);
-    }
-    
-    return pattern;
+    return Math.max(syllableCount, 1);
 }
 
-// Detect sentence type for pitch pattern
-function getSentenceType(sentence) {
-    sentence = sentence.trim();
+// 4. Enhanced word processing in analyzeText function
+function analyzeText() {
+    const text = document.getElementById('textInput').value;
+    if (!text.trim()) return;
     
-    if (sentence.endsWith('?')) {
-        // Check if it's a yes/no question or wh-question
-        const whWords = ['what', 'where', 'when', 'why', 'how', 'who', 'which', 'whose'];
-        const firstWord = sentence.toLowerCase().split(' ')[0];
-        return whWords.includes(firstWord) ? 'wh-question' : 'yes-no-question';
-    }
+    const words = text.split(/\s+/).filter(word => word.length > 0);
     
-    if (sentence.endsWith('!')) return 'exclamation';
-    return 'statement';
-}
-
-// Detect pause locations
-function getPauseLocations(words, originalText) {
-    const pauseIndices = [];
-    const punctuation = /[,.;:]/;
-    const conjunctions = ['and', 'but', 'or', 'so', 'yet', 'for', 'nor'];
-    const relatives = ['which', 'that', 'who', 'whom', 'whose', 'where', 'when'];
-    
-    words.forEach((word, index) => {
-        const nextWord = words[index + 1];
+    words.forEach(word => {
+        // Clean word for analysis but keep original for display
+        const cleanWord = word.replace(/[^\w']/g, '');
+        if (!cleanWord) return;
         
-        // Pause after punctuation
-        if (punctuation.test(originalText)) pauseIndices.push(index);
+        const stresses = getWordStress(cleanWord);
         
-        // Pause before conjunctions and relative pronouns
-        if (nextWord && (conjunctions.includes(nextWord.toLowerCase()) || 
-                        relatives.includes(nextWord.toLowerCase()))) {
-            pauseIndices.push(index);
-        }
+        // Debug logging
+        console.log(`Word: ${cleanWord}, Stresses: ${stresses.join(',')}`);
+        
+        // Continue with your visualization logic...
     });
-    
-    return pauseIndices;
-}
-
-// Main analysis function
-async function analyzeIntonationAndWordStress() {
-    const textInput = document.getElementById('textInput');
-    const analysisResult = document.getElementById('analysisResult');
-    
-    if (!textInput || !analysisResult) return;
-    
-    const text = textInput.value.trim();
-    if (!text) {
-        analysisResult.innerHTML = '<p>Please enter some text to analyze.</p>';
-        return;
-    }
-    
-    analysisResult.innerHTML = '<p>Loading CMU dictionary and analyzing...</p>';
-    
-    try {
-        // Load dictionary
-        await loadCMUDictionary();
-        
-        // Split into sentences
-        const sentences = text.split(/[.!?]+/).filter(s => s.trim());
-        let resultHTML = '';
-        
-        for (const sentence of sentences) {
-            if (!sentence.trim()) continue;
-            
-            const sentenceType = getSentenceType(sentence);
-            const words = sentence.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w);
-            const pauseIndices = getPauseLocations(words, sentence);
-            
-            let sentenceHTML = `<div class="sentence ${sentenceType}">`;
-            
-            words.forEach((word, index) => {
-                // Get stress pattern
-                let stressPattern, pronunciation;
-                
-                if (cmuDict && cmuDict[word.toUpperCase()]) {
-                    pronunciation = cmuDict[word.toUpperCase()];
-                    stressPattern = getStressPattern(pronunciation);
-                } else {
-                    stressPattern = getFallbackStressPattern(word);
-                    pronunciation = null;
-                }
-                
-                // Create stress bars
-                const stressBars = stressPattern.map(stress => 
-                    `<div class="stress-bar stress-${stress}"></div>`
-                ).join('');
-                
-                // Add word visualization
-                sentenceHTML += `
-                    <div class="word-container">
-                        <div class="word">${word}</div>
-                        <div class="stress-pattern">${stressBars}</div>
-                        ${pronunciation ? `<div class="pronunciation">${pronunciation}</div>` : ''}
-                    </div>
-                `;
-                
-                // Add pause marker if needed
-                if (pauseIndices.includes(index)) {
-                    sentenceHTML += '<div class="pause-marker">|</div>';
-                }
-            });
-            
-            sentenceHTML += '</div>';
-            resultHTML += sentenceHTML;
-        }
-        
-        analysisResult.innerHTML = resultHTML;
-        
-    } catch (error) {
-        analysisResult.innerHTML = '<p>Error analyzing text. Please try again.</p>';
-        console.error('Analysis error:', error);
-    }
 }
    </script>
 </body>
