@@ -384,22 +384,10 @@ async function analyzeIntonationAndWordStress() {
                 // Get stress pattern
                 let stressPattern, pronunciation;
                 
-                if (cmuDict) {
-                    const dictKey = word.toUpperCase();
-                    const dictEntry = cmuDict[dictKey];
-                    
-                    // Debug logging (remove in production)
-                    console.log(`Word: ${word}, Dictionary key: ${dictKey}, Found: ${!!dictEntry}`);
-                    
-                    if (dictEntry) {
-                        pronunciation = Array.isArray(dictEntry) ? dictEntry[0] : dictEntry;
-                        stressPattern = getStressPattern(pronunciation);
-                        console.log(`Stress pattern for ${word}:`, stressPattern);
-                    } else {
-                        stressPattern = getFallbackStressPattern(word);
-                        pronunciation = null;
-                        console.log(`Using fallback for ${word}:`, stressPattern);
-                    }
+                if (cmuDict && cmuDict[word.toUpperCase()]) {
+                    const dictEntry = cmuDict[word.toUpperCase()];
+                    pronunciation = Array.isArray(dictEntry) ? dictEntry[0] : dictEntry;
+                    stressPattern = getStressPattern(pronunciation);
                 } else {
                     stressPattern = getFallbackStressPattern(word);
                     pronunciation = null;
@@ -419,7 +407,7 @@ async function analyzeIntonationAndWordStress() {
                     </div>
                 `;
                 
-                // Add pause marker
+                // Add pause marker if needed
                 if (pauseIndices.includes(index)) {
                     sentenceHTML += '<div class="pause-marker">|</div>';
                 }
