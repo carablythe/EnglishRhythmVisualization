@@ -265,10 +265,7 @@ async function loadCMUDictionary() {
 function getStressPattern(pronunciation) {
     if (!pronunciation) return [];
     
-    // Handle case where pronunciation might be an array
-    let pronString = Array.isArray(pronunciation) ? pronunciation[0] : pronunciation;
-    
-    const phonemes = pronString.split(' ');
+    const phonemes = pronunciation.split(' ');
     const stressPattern = [];
     
     for (const phoneme of phonemes) {
@@ -378,8 +375,7 @@ async function analyzeIntonationAndWordStress() {
                 let stressPattern, pronunciation;
                 
                 if (cmuDict && cmuDict[word.toUpperCase()]) {
-                    const dictEntry = cmuDict[word.toUpperCase()];
-                    pronunciation = Array.isArray(dictEntry) ? dictEntry[0] : dictEntry;
+                    pronunciation = cmuDict[word.toUpperCase()];
                     stressPattern = getStressPattern(pronunciation);
                 } else {
                     stressPattern = getFallbackStressPattern(word);
