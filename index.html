@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Question Generator</title>
+    <title>English Rhythm Visualization</title>
     <style>
 
         body {
@@ -190,17 +190,17 @@
 </head>
 <body>
     <div class="container">
-        <h1>Intonation and Word Stress Analyzer</h1>
+        <h1>English Rhythm Visualization</h1>
         <p class="subtitle">Visualize English speech patterns and stress</p>
         
-        <textarea id="textInput" placeholder="Enter your English text here to see natural word stress and intonation patterns!">Enter text here</textarea>
+        <textarea id="textInput" placeholder="Enter your English text here to see natural word stress, sentences stress, pauses and intonation patterns!">Enter text here</textarea>
         
         
-        <button onclick="analyzeIntonation()">Analyze Intonation and Word Stress</button>
+        <button onclick="analyzeIntonation()">Analyze Rhythm</button>
         
         <div id="visualization" class="visualization">
             <p style="text-align: center; color: #718096; font-style: italic;">
-                Enter text above and click "Analyze Intonation and Word Stress" to see the speech pattern visualization
+                Enter text above and click "Analyze Rhythm" to see the speech pattern visualization
             </p>
         </div>
         
@@ -213,10 +213,6 @@
             <div class="legend-item">
                 <div class="legend-line" style="background: #f56500;"></div>
                 <span>Secondary stress (medium)</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-line" style="background: #667eea;"></div>
-                <span>Weak stress (low)</span>
             </div>
             <div class="legend-item">
                 <div class="legend-line" style="background: #a0aec0;"></div>
@@ -248,7 +244,7 @@
     </div>
   
  <script>
-/ CMU Dictionary cache
+// CMU Dictionary cache
 let cmuDict = null;
 
 // Load CMU Dictionary from CDN
@@ -258,6 +254,7 @@ async function loadCMUDictionary() {
     try {
         const response = await fetch('https://cdn.jsdelivr.net/npm/cmu-pronouncing-dictionary@1.4.0/dict.json');
         cmuDict = await response.json();
+        console.log('CMU Dictionary loaded successfully');
         return cmuDict;
     } catch (error) {
         console.warn('Failed to load CMU dictionary, using fallback');
@@ -269,12 +266,17 @@ async function loadCMUDictionary() {
 function getStressPattern(pronunciation) {
     if (!pronunciation) return [];
     
-    const phonemes = pronunciation.split(' ');
+    // Handle case where pronunciation might be an array (multiple pronunciations)
+    let pronString = Array.isArray(pronunciation) ? pronunciation[0] : pronunciation;
+    
+    const phonemes = pronString.split(' ');
     const stressPattern = [];
     
     for (const phoneme of phonemes) {
+        // Only vowel phonemes have stress markers in CMU dictionary
         if (phoneme.match(/\d$/)) {
-            stressPattern.push(parseInt(phoneme.slice(-1)));
+            const stressLevel = parseInt(phoneme.slice(-1));
+            stressPattern.push(stressLevel);
         }
     }
     
@@ -292,6 +294,10 @@ function getFallbackStressPattern(word) {
         if (isVowel && !prevWasVowel) syllables++;
         prevWasVowel = isVowel;
     }
+    
+    // Handle silent e and common patterns
+    if (word.endsWith('e') && syllables > 1) syllables--;
+    if (word.endsWith('ed') && !word.match(/[td]ed$/)) syllables--;
     
     syllables = Math.max(1, syllables);
     
@@ -378,9 +384,22 @@ async function analyzeIntonationAndWordStress() {
                 // Get stress pattern
                 let stressPattern, pronunciation;
                 
-                if (cmuDict && cmuDict[word.toUpperCase()]) {
-                    pronunciation = cmuDict[word.toUpperCase()];
-                    stressPattern = getStressPattern(pronunciation);
+                if (cmuDict) {
+                    const dictKey = word.toUpperCase();
+                    const dictEntry = cmuDict[dictKey];
+                    
+                    // Debug logging (remove in production)
+                    console.log(`Word: ${word}, Dictionary key: ${dictKey}, Found: ${!!dictEntry}`);
+                    
+                    if (dictEntry) {
+                        pronunciation = Array.isArray(dictEntry) ? dictEntry[0] : dictEntry;
+                        stressPattern = getStressPattern(pronunciation);
+                        console.log(`Stress pattern for ${word}:`, stressPattern);
+                    } else {
+                        stressPattern = getFallbackStressPattern(word);
+                        pronunciation = null;
+                        console.log(`Using fallback for ${word}:`, stressPattern);
+                    }
                 } else {
                     stressPattern = getFallbackStressPattern(word);
                     pronunciation = null;
@@ -400,7 +419,7 @@ async function analyzeIntonationAndWordStress() {
                     </div>
                 `;
                 
-                // Add pause marker if needed
+                // Add pause marker
                 if (pauseIndices.includes(index)) {
                     sentenceHTML += '<div class="pause-marker">|</div>';
                 }
