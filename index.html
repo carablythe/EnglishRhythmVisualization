@@ -248,926 +248,175 @@
     </div>
   
  <script>
-// Common English function words (typically unstressed)
-        const functionWords = new Set([
-            'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
-            'from', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'enough',
-            'up', 'down', 'out', 'off', 'over', 'under', 'around', 'within','again', 'further', 'then', 'once',
-            'is', 'am', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
-            'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must',
-            'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him',  'us', 'them',
-            'my', 'your', 'his', 'her', 'its', 'our', 'their', 'this', 'that', 'these', 'those', 'until', 'because', 'without', 'between', 'among', 'beyond', 'beneath', 'beside', 'become']);
+// CMU Dictionary cache
+let cmuDict = null;
 
-        // Words that typically receive emphasis
-        const emphasisWords = new Set([
-            'very', 'really', 'absolutely', 'completely', 'totally', 'extremely', 'incredibly',
-            'amazing', 'wonderful', 'terrible', 'awful', 'fantastic', 'great', 'excellent',
-            'never', 'always', 'definitely', 'certainly', 'probably', 'maybe', 'perhaps'
-        ]);
-
-        // Common syllable patterns for stress detection
-        const stressPatterns = {
-            // Two-syllable words - first syllable stressed
-            'trochee': ['happy', 'table', 'water', 'running', 'pretty', 'little', 'mother', 'father'],
-            // Two-syllable words - second syllable stressed  
-            'iamb': ['about', 'again', 'around', 'before', 'between', 'mistake', 'complete', 'receive']
-        };
-
-
-        function analyzeIntonation() {
-            const text = document.getElementById('textInput').value.trim();
-            if (!text) {
-                alert('Please enter some text to analyze!');
-                return;
-            }
-
-            const visualization = document.getElementById('visualization');
-            visualization.innerHTML = '';
-
-            // Parse sentences
-           const sentences = text.match(/[^.!?]*[.!?]+/g) || [text];
-          
-            
-            sentences.forEach(sentence => {
-                if (sentence.trim()) {
-                    const sentenceDiv = document.createElement('div');
-                    sentenceDiv.style.marginBottom = '40px';
-                    
-                    const words = sentence.trim().split(/\s+/);
-                    const intonationType = detectIntonationType(sentence);
-                    
-                    words.forEach((word, index) => {
-                        const wordContainer = document.createElement('div');
-                        wordContainer.className = 'word-container';
-                        
-                       // Clean word (remove punctuation for analysis) but preserve case for acronym detection
-const cleanWord = word.replace(/[^\w]/g, '');
-const syllables = getImprovedSyllables(cleanWord);
-                       const isAcronym = cleanWord.match(/^[A-Z]{2,}$/) && !new Set(['LINE']).has(cleanWord);
-const stressPattern = getSyllableStress(cleanWord, syllables, isAcronym);
-                        const sentenceStress = getSentenceStress(cleanWord, index, words.length, intonationType);
-                        
-                     
-                        // Create SVG for intonation line - size it to match word width more closely
-const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-svg.setAttribute('class', 'intonation-line');
-const svgWidth = Math.max(word.length * 6 + 10, 30); // Reduced multiplier and minimum
-svg.setAttribute('viewBox', `0 0 ${svgWidth} 45`);
-svg.style.width = `${svgWidth}px`;
-svg.style.maxWidth = `${word.length * 8}px`; // Cap the maximum width // Prevent overlapping
-                        
-                        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                        const pathData = generateDetailedIntonationPath(word, syllables, stressPattern, sentenceStress, index, words.length, intonationType);
-                        path.setAttribute('d', pathData);
-                        
-                        // Color coding based on stress levels
-                        const maxStress = Math.max(...stressPattern);
-                        let strokeColor = '#a0aec0'; // Default light gray for unstressed
-                        if (maxStress >= 3) strokeColor = '#e53e3e'; // Red for primary stress
-                        else if (maxStress >= 2) strokeColor = '#f56500'; // Orange for secondary stress
-                        else if (maxStress >= 1) strokeColor = '#667eea'; // Blue for slight stress
-                        
-                        path.setAttribute('stroke', strokeColor);
-                        path.setAttribute('stroke-width', maxStress >= 2 ? '3' : '2');
-                        path.setAttribute('fill', 'none');
-                        
-                        svg.appendChild(path);
-                        wordContainer.appendChild(svg);
-                      createSentenceSwoosh(wordContainer, word, index, words.length, intonationType); 
-                        
-                        // Create word text with stress indication
-                        const wordSpan = document.createElement('span');
-                        const hasStress = maxStress >= 2 || sentenceStress >= 2;
-                        wordSpan.className = 'word-text' + (hasStress ? ' stressed' : '');
-                        wordSpan.textContent = word;
-                        
-                        wordContainer.appendChild(wordSpan);
-                      
-                      // Add breath marks for punctuation and conjunctions
-      // Add breath marks BEFORE conjunctions, relative pronouns, and long prepositional phrases
-// OR after punctuation in the current word
-// Add breath marks BEFORE conjunctions, relative pronouns, and long prepositional phrases
-if (shouldAddBreathMarkBefore(word, index, words)) {
-    const breathMark = document.createElement('div');
-    breathMark.className = 'breath-mark';
-    breathMark.style.position = 'absolute';
-    breathMark.style.left = '-15px'; // Position it to the left of the word
-    wordContainer.appendChild(breathMark);
+// Load CMU Dictionary from CDN
+async function loadCMUDictionary() {
+    if (cmuDict) return cmuDict;
+    
+    try {
+        const response = await fetch('https://cdn.jsdelivr.net/npm/cmu-pronouncing-dictionary@1.4.0/dict.json');
+        cmuDict = await response.json();
+        return cmuDict;
+    } catch (error) {
+        console.warn('Failed to load CMU dictionary, using fallback');
+        return null;
+    }
 }
 
-// Add breath marks after punctuation
-if (shouldAddBreathMark(word, index, words)) {
-    const breathMark = document.createElement('div');
-    breathMark.className = 'breath-mark';
-    wordContainer.appendChild(breathMark);
-}
-
-wordContainer.appendChild(wordSpan);
-                        sentenceDiv.appendChild(wordContainer);
-                    });
-                    
-                    visualization.appendChild(sentenceDiv);
-                }
-            });
+// Extract stress pattern from CMU pronunciation
+function getStressPattern(pronunciation) {
+    if (!pronunciation) return [];
+    
+    const phonemes = pronunciation.split(' ');
+    const stressPattern = [];
+    
+    for (const phoneme of phonemes) {
+        if (phoneme.match(/\d$/)) {
+            stressPattern.push(parseInt(phoneme.slice(-1)));
         }
+    }
+    
+    return stressPattern.length > 0 ? stressPattern : [0];
+}
 
-        function detectIntonationType(sentence) {
-            const trimmed = sentence.trim();
-            const lastChar = trimmed[trimmed.length - 1];
-            
-            if (lastChar === '?') {
-    // Distinguish between yes/no questions and wh-questions
-    const whWords = ['what', 'where', 'when', 'why', 'who', 'how', 'which'];
-    const firstWord = trimmed.split(' ')[0].toLowerCase().replace(/[^\w]/g, '');
-    return whWords.includes(firstWord) ? 'wh-question' : 'yes-no-question';
-} else if (lastChar === '!') {
-    return 'exclamation';
-} else if (lastChar === '.') {
+// Fallback syllable counting for unknown words
+function getFallbackStressPattern(word) {
+    const vowels = /[aeiouyAEIOUY]/;
+    let syllables = 0;
+    let prevWasVowel = false;
+    
+    for (let i = 0; i < word.length; i++) {
+        const isVowel = vowels.test(word[i]);
+        if (isVowel && !prevWasVowel) syllables++;
+        prevWasVowel = isVowel;
+    }
+    
+    syllables = Math.max(1, syllables);
+    
+    // Simple stress heuristic: primary stress on first syllable for multi-syllable words
+    const pattern = [];
+    for (let i = 0; i < syllables; i++) {
+        pattern.push(i === 0 && syllables > 1 ? 1 : 0);
+    }
+    
+    return pattern;
+}
+
+// Detect sentence type for pitch pattern
+function getSentenceType(sentence) {
+    sentence = sentence.trim();
+    
+    if (sentence.endsWith('?')) {
+        // Check if it's a yes/no question or wh-question
+        const whWords = ['what', 'where', 'when', 'why', 'how', 'who', 'which', 'whose'];
+        const firstWord = sentence.toLowerCase().split(' ')[0];
+        return whWords.includes(firstWord) ? 'wh-question' : 'yes-no-question';
+    }
+    
+    if (sentence.endsWith('!')) return 'exclamation';
     return 'statement';
-} else if (trimmed.includes(',')) {
-    return 'list';
-}
-return 'statement'; // Default fallback
-        }
-
-function shouldAddBreathMark(word, index, words) {
-    // Check if current word has punctuation (comma, semicolon, colon)
-    if (word.match(/[,;:]/)) {
-        return true;
-    }
-    
-    return false;
 }
 
-function shouldAddBreathMarkBefore(word, index, words) {
-    // Don't add breath mark before the first word
-    if (index === 0) {
-        return false;
-    }
+// Detect pause locations
+function getPauseLocations(words, originalText) {
+    const pauseIndices = [];
+    const punctuation = /[,.;:]/;
+    const conjunctions = ['and', 'but', 'or', 'so', 'yet', 'for', 'nor'];
+    const relatives = ['which', 'that', 'who', 'whom', 'whose', 'where', 'when'];
     
-    // Check if the previous word has punctuation - if so, don't add another breath mark
-    const previousWord = words[index - 1];
-    if (previousWord && previousWord.match(/[,;:]/)) {
-        return false;
-    }
-    
-    // Common conjunctions that create natural pauses
-    const conjunctions = new Set(['and', 'but', 'or', 'so', 'yet', 'for', 'nor', 'because', 'although', 'though', 'however', 'nonetheless', 'while', 'since', 'unless', 'until', 'if', 'when', 'where', 'whereas']);
-    const cleanWord = word.toLowerCase().replace(/[^\w]/g, '');
-    
-    // Relative pronouns that start clauses
-    const relativePronouns = new Set(['who', 'whom', 'whose', 'which', 'that', 'where', 'when']);
-    
-    // Long prepositional phrases (preposition + 3+ words)
-    const prepositions = new Set(['in', 'on', 'at', 'by', 'for', 'with', 'without', 'through', 'during', 'before', 'after', 'above', 'below', 'under', 'over', 'between', 'among', 'beyond', 'beneath', 'beside']);
-    
-    // Check if current word is "even" and is followed by a conjunction, relative pronoun, or preposition
-    if (cleanWord === 'even' && index < words.length - 1) {
-        const nextWord = words[index + 1].toLowerCase().replace(/[^\w]/g, '');
-        if (conjunctions.has(nextWord) || relativePronouns.has(nextWord)) {
-            return true;
-        }
-        if (prepositions.has(nextWord)) {
-            // Check if the preposition starts a phrase of 3+ words
-            let phraseLength = 0;
-            for (let i = index + 1; i < Math.min(index + 5, words.length); i++) {
-                const checkWord = words[i].toLowerCase().replace(/[^\w]/g, '');
-                if (functionWords.has(checkWord) || prepositions.has(checkWord) || checkWord.length > 0) {
-                    phraseLength++;
-                } else {
-                    break;
-                }
-            }
-            if (phraseLength >= 3) {
-                return true;
-            }
-        }
-    }
-    
-    // Check conjunctions (skip if preceded by "even")
-    if (conjunctions.has(cleanWord)) {
-        if (index > 0 && words[index - 1].toLowerCase().replace(/[^\w]/g, '') === 'even') {
-            return false;
-        }
-        return true;
-    }
-    
-    // Check relative pronouns (skip if preceded by "even")
-    if (relativePronouns.has(cleanWord)) {
-        if (index > 0 && words[index - 1].toLowerCase().replace(/[^\w]/g, '') === 'even') {
-            return false;
-        }
-        return true;
-    }
-    
-    // Check prepositions for long phrases (skip if preceded by "even")
-    if (prepositions.has(cleanWord)) {
-        // Check if this starts a phrase of 3+ words
-        let phraseLength = 0;
-        for (let i = index; i < Math.min(index + 4, words.length); i++) {
-            const nextWord = words[i].toLowerCase().replace(/[^\w]/g, '');
-            if (functionWords.has(nextWord) || prepositions.has(nextWord) || nextWord.length > 0) {
-                phraseLength++;
-            } else {
-                break;
-            }
-        }
+    words.forEach((word, index) => {
+        const nextWord = words[index + 1];
         
-        if (phraseLength >= 3) {
-            // Check if "even" appears directly before this preposition
-            if (index > 0) {
-                const prevWord = words[index - 1].toLowerCase().replace(/[^\w]/g, '');
-                if (prevWord === 'even') {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-    
-    return false;
-}
-
-function analyzeClauseIntonation(text) {
-    // Handle comma-separated clauses within sentences
-    const clauses = text.split(',').map(clause => clause.trim()).filter(clause => clause.length > 0);
-    
-    if (clauses.length > 1) {
-        return clauses.map((clause, index) => {
-            if (index === clauses.length - 1) {
-                // Last clause - use sentence ending
-                const lastChar = text.trim().slice(-1);
-                if (lastChar === '?') return 'question-final';
-                if (lastChar === '!') return 'exclamation-final';
-                return 'statement-final';
-            } else {
-                // Non-final clauses typically have slight rise (continuation)
-                return 'continuation';
-            }
-        });
-    }
-    
-    return ['single'];
-}
-
+        // Pause after punctuation
+        if (punctuation.test(originalText)) pauseIndices.push(index);
         
-function createSyllableArray(word, count) {
-    if (count === 1) return [word];
-    const syllables = [];
-    const avgLength = word.length / count;
-    for (let i = 0; i < count; i++) {
-        const start = Math.round(i * avgLength);
-        const end = i === count - 1 ? word.length : Math.round((i + 1) * avgLength);
-        syllables.push(word.substring(start, end));
-    }
-    return syllables;
-}
-
-function getImprovedSyllables(word) {
-  
-  // Specific syllable count overrides
-const syllableOverrides = {
-    'compared': 2, 'compare': 2, 'sharefull': 2, 'shareful': 2,'Sharefull': 2, 'client': 2, 'scale': 1, 'fee': 1,'area': 3, 'creates':2, 'buyers': 2, 'create':2, 'buyer': 2, 'rate': 1, 'rates': 1, 'GMV': 3, 'gmv': 3, 
-};
-
-// Check for exact matches first (including plurals)
-const baseWord = word.replace(/s$/, ''); // Remove trailing 's'
-if (syllableOverrides[word]) {
-    return createSyllableArray(word, syllableOverrides[word]);
-}
-if (syllableOverrides[baseWord]) {
-    return createSyllableArray(word, syllableOverrides[baseWord]);
-}
-  
-    if (!word || word.length === 0) return [''];
-    
-  
-
-  // Handle acronyms - if word is all uppercase, treat each letter as a syllable
-// Exception: some all-caps words are still regular words, not acronyms
-const acronymExceptions = new Set(['LINE']);
-if (word.match(/^[A-Z]{2,}$/) && !acronymExceptions.has(word)) {
-    return word.split('');
-}
-  
-word = word.toLowerCase();
-  
-
-  
-  // Handle numerals - each digit gets its own syllable with primary stress
-// Exception: "12" is pronounced as one syllable ("twelve")
-if (word.match(/^\d+$/)) {
-    if (word === '12' || word === '10') {
-        return [word]; // Single syllable
-    }
-    return word.split('');
-}
-    
-
-   // Handle "es" endings FIRST, before general vowel counting
-if (word.endsWith('es')) {
-    const beforeEs = word.slice(0, -2);
-    // Only count "es" as separate syllable after true sibilants that need the extra vowel sound
-    if (beforeEs.match(/(ss|zz|x|sh|ch)$/)) {
-        // For words like "glasses", "buzzes", "boxes", "wishes", "catches"
-        // Count syllables in the base word, then add 1 for the "es"
-        const baseCount = (beforeEs.match(/[aeiouy]+/g) || []).length;
-        syllableCount = baseCount + 1;
-    } else {
-        // For words like "scores", "sales", "states", "games", "comes"
-        // The "es" is really just "s" - don't count the "e"
-        const baseWord = beforeEs + 's'; // Convert "scores" to "score" + "s"
-        syllableCount = (beforeEs.match(/[aeiouy]+/g) || []).length;
-    }
-} else {
-    // Original vowel counting logic for non-"es" words
-    syllableCount = (word.match(/[aeiouy]+/g) || []).length;
-}
-    
-  // Adjust for silent e
-// Handle final "e" - don't count as separate syllable unless it's "ue" or "ee"
-if (word.endsWith('e') && !word.endsWith('ue') && !word.endsWith('ee') && syllableCount > 1) {
-    syllableCount--;
-}
-
-// Handle final "ue" and "ee" - DO count as separate syllables
-if ((word.endsWith('ue') || word.endsWith('ee')) && syllableCount === 1) {
-    syllableCount = 2; // Ensure "ue" and "ee" words have at least 2 syllables
-}
-    
-    // Adjust for common patterns
-    if (word.match(/le$/)) syllableCount++; // -le ending adds syllable
-   if (word.match(/ed$/) && !word.match(/[aeiou]ed$/) && !word.match(/[td]ed$/)) syllableCount--; // silent -ed except after t/d
-    
-    syllableCount = Math.max(1, syllableCount);
-    
-  // Handle contractions for syllable counting
-if (word.includes("'")) {
-    // Contractions that don't add syllables: 's, 'll, 'd, 're, 've
-    if (word.match(/'(s|ll|d|re|ve)$/i)) {
-        // These contractions don't add extra syllables
-        // Count syllables in the base word only
-        const baseWord = word.replace(/'(s|ll|d|re|ve)$/i, '');
-        // Continue with normal syllable counting for baseWord
-        // Don't add extra syllable for the contraction
-        return countSyllables(baseWord); // or however you count syllables
-    }
-    
-    // Contractions with 't that DO add syllables when preceded by 'n'
-    // Examples: can't, won't, isn't, aren't, haven't, wouldn't, shouldn't
-    else if (word.match(/n't$/i)) {
-        // These contractions add one extra syllable
-        const baseWord = word.replace(/n't$/i, '');
-        return countSyllables(baseWord) + 1;
-    }
-    
-    // Other 't contractions that might not follow the 'n' rule
-    // Examples: it's -> it is (not "it not"), what's, that's
-    else if (word.match(/'t$/i) && !word.match(/n't$/i)) {
-        // These don't add syllables (they're usually "it is" type contractions)
-        const baseWord = word.replace(/'t$/i, '');
-        return countSyllables(baseWord);
-    }
-}
-    // Simple syllable division
-    if (syllableCount === 1) return [word];
-    
-    const syllables = [];
-    const avgLength = word.length / syllableCount;
-    
-    for (let i = 0; i < syllableCount; i++) {
-        const start = Math.round(i * avgLength);
-        const end = i === syllableCount - 1 ? word.length : Math.round((i + 1) * avgLength);
-        syllables.push(word.substring(start, end));
-    }
-    
-    return syllables;
-}
-    
-
-    
-  function getSyllableStress(word, syllables, isAcronym = false) {
-    // Acronyms get primary stress on each letter
-    if (isAcronym) {
-        return new Array(syllables.length).fill(3);
-    }
-    
-    // Returns array of stress levels for each syllable (0-3)
-  
-// Numerals get primary stress on each digit - check syllables too
-if (word.match(/^\d+$/) || syllables.every(syl => syl.match(/^\d$/))) {
-    return new Array(syllables.length).fill(3);
-}
-  
-  
-    if (syllables.length === 1) {
-        // Monosyllabic words
-        if (functionWords.has(word)) return [0];
-        return [2]; // Content words get some stress
-    }
-    
-    const stressPattern = new Array(syllables.length).fill(0);
-    
-    // Apply stress rules in order of priority
-    if (applyStressRules(word, stressPattern, syllables)) {
-        return stressPattern;
-    }
-    
-    // Default fallback - stress first syllable
-    stressPattern[0] = 3;
-    return stressPattern;
-}
-
-function applyStressRules(word, stressPattern, syllables) {
-    const len = syllables.length;
-    
- // Helper function to remove common suffixes
-function getBaseWord(word) {
-    const lowerWord = word.toLowerCase();
-    
-    // Remove common suffixes in order of length (longest first to avoid partial matches)
-    const suffixes = ['es', 'ed', 'ly', 's', 'd', "'s"];
-    
-    for (const suffix of suffixes) {
-        if (lowerWord.endsWith(suffix)) {
-            return lowerWord.slice(0, -suffix.length);
+        // Pause before conjunctions and relative pronouns
+        if (nextWord && (conjunctions.includes(nextWord.toLowerCase()) || 
+                        relatives.includes(nextWord.toLowerCase()))) {
+            pauseIndices.push(index);
         }
-    }
-    
-    return lowerWord;
-}
-
-
-  
-// Rule 6: Suffixes that take primary stress
-if (word.match(/(ade|ee|ese|eer|teen|que|ette|oon)$/) && word.toLowerCase() !== 'timee') {
-    stressPattern[len - 1] = 3; // Stress on suffix
-    return true;
-}
-    
-  
-  // Rule for -ism and -ship suffixes
-if (word.match(/(ism|ship)$/)) {
-    // Check if word starts with unstressed prefixes (but exclude "despot" words)
-    if (word.match(/^(de|dis|il|re|un|im)/) && !word.match(/^despot/)) {
-        stressPattern[1] = 3; // Second syllable for prefixed words
-    } else {
-        stressPattern[0] = 3; // First syllable for non-prefixed words
-    }
-    return true;
-}
-  
-  // Rule 7: words where the stressed syllable is right before suffix
-if (word.match(/(ic|sion|tion|ment|ness|ive|ance|ancy|ence|ency|logy|ity)(s|al|ally)?$/)) {
-    let suffixSyllables = 1;
-    if (word.match(/ically$/)) suffixSyllables = 3; // -ically is 3 syllables (i-cal-ly)
-    else if (word.match(/(ic|sion|tion|ment|ness)ally$/)) suffixSyllables = 3; // -ally is 2 syllables, total 3
-    else if (word.match(/(ic|sion|tion|ment|ness)al$/)) suffixSyllables = 2; // -al is 1 syllable, total 2
-    
-    const stressPos = len - suffixSyllables - 1; // Syllable right before suffix
-    if (stressPos >= 0) {
-        stressPattern[stressPos] = 3;
-        return true;
-    }
-}
- 
-// Rule for -ing words with updated stress patterns
-if (word.match(/ing$/)) {
-    const root = word.slice(0, -3);
-    const rootSyllables = len - 1; // Total syllables minus the -ing syllable
-    
-    // Exceptions: words that stress first syllable regardless of length
-    const firstSyllableExceptions = [
-        'challenging', 'listening', 'gathering', 'wandering', 'wondering',
-        'whispering', 'traveling', 'shimmering', 'thundering', 'trembling',
-        'glittering', 'chattering', 'clattering', 'shattering', 'flattering', 'scattering', 'battering', 'muttering', 'buttering', 'littering','tittering', 'guttering', 'puttering', 'shuttering', 'cluttering', 'happening', 'harvesting', 'promising', 'suffering', 'surfacing', 'borrowing', 'opening', 'worrying', 'following', 'purchasing', 'visiting', 'picturing', 'answering', 'canceling', 'entering', 'balancing', 'stabilizing', 'offering', 'marketing', 'advertising', 'targeting'];
-    
-    if (firstSyllableExceptions.includes(word.toLowerCase())) {
-        stressPattern[0] = 3; // First syllable stress for exceptions
-        return true;
-    }
-    
-    if (rootSyllables === 1) { // Single syllable roots like "launch", "list"
-        stressPattern[0] = 3; // Stress the root syllable
-        return true;
-    } else if (len === 2) { // 2 syllable words: stress first syllable
-        stressPattern[0] = 3; // First syllable stress
-        return true;
-    } else if (len >= 3) { // 3+ syllable words: stress second syllable
-        stressPattern[1] = 3; // Second syllable stress
-        return true;
-    }
-}
-
-  
-  // Rule for words ending in -ed (past tense)
-if (word.match(/ed$/)) {
-    // Exceptions: these -ed words stress the first syllable
-    if (word === 'upgraded' || word === 'upskilled') {
-        stressPattern[0] = 3; // First syllable
-        return true;
-    }
-    if (len >= 3) {
-        stressPattern[1] = 3; // Usually second syllable
-        return true;
-    }
-}
-
-
-  
-    // Rule 8: -cy, -ty, -phy, -gy, -al, -able, -ible stress third from end
-    if (word.match(/(cy|ty|phy|gy|al|able|ible)s?$/)) {
-        const stressPos = len - 3;
-        if (stressPos >= 0) {
-            stressPattern[stressPos] = 3;
-            return true;
-        }
-    }
-  
-
-  // Rule for 4-syllable words - stress second syllable (except for above suffix rules)
-if (len === 4) {
-    stressPattern[1] = 3; // Second syllable (index 1)
-    return true;
-}
-  
-    // Rule 12: Reflexive pronouns - stress second syllable
-    if (word.match(/^(my|your|him|her|it|our|them)sel(f|ves)$/)) {
-        if (len >= 2) {
-            stressPattern[1] = 3;
-            return true;
-        }
-    }
-    
-    // Rule 13: Multiples of ten and "seven"- stress first syllable
-    if (word.match(/^(seven|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|twenties|thirties|fourties|fifties|sixties|seventies|eighties|nineties)$/)) {
-        stressPattern[0] = 3;
-        return true;
-    }
-    
-// Two-syllable function words (prepositions, conjunctions, etc.)
-if (len === 2 && functionWords.has(word)) {
-    if (['after', 'into', 'over', 'under'].includes(word)) {
-        stressPattern[0] = 3; // These prepositions stress first syllable
-    } else {
-        stressPattern[1] = 3; // Most function words stress second syllable
-    }
-    return true;
-}
-
-// Two-syllable content words (nouns, verbs, adjectives)
-if (len === 2) {
-    // Rule 2: Two-syllable nouns/adjectives - first syllable
-    // Rule 3: Two-syllable verbs - second syllable
-    
-    // Check if it's likely a verb based on suffix patterns
-    const verbSuffixes = /(act|age|ail|ain|and|are|ate|ify|ifies|ize|ise|ease|ete|ect|ose|ire|ive|ign|ply|plies|tain|vide|duce|ceive|port|strict|struct|gress|press|tract|spect|flect|cede|pose|move|prove|serve|solve|volve|pend|tend|mend|fend|scend|ude|ue|ult)[sd]?$/;
-    if (word.match(verbSuffixes)) {
-        stressPattern[1] = 3; // Verb pattern - second syllable
-    } else {
-        stressPattern[0] = 3; // Default to noun/adjective pattern - first syllable
-    }
-    return true;
-}
-    
-    
-    // Compound word rules (Rules 9-11)
-    if (word.includes('-') || isCompoundWord(word)) {
-        return handleCompoundStress(word, stressPattern, syllables);
-    }
-    // Rule for words with first syllable stress (case-insensitive)
-const firstStressWords = ['positive','ever', 'after', 'into', 'over', 'under', 'further', 'farther', 'business', 'timee', 'frequency', 'upgrade', 'upskill', 'sharefull', 'category', 'generates'];
-if (firstStressWords.includes(getBaseWord(word))) {
-    stressPattern[0] = 3; // first syllable
-    return true;
-}
-
-// Rule for words with second syllable stress (case-insensitive)
-const secondStressWords = ['important', 'however', 'although', 'objective', 'unchanged', 'significant', 'mercari', 'percentage', 'percent', 'expense', 'effectively', 'complaints', 'continue'];
-const baseWord = getBaseWord(word);
-if (secondStressWords.includes(baseWord)) {
-    stressPattern[1] = 3; // Second syllable
-    return true;
-}
-
-  const thirdStressWords = ['altogether', 'nationwide', 'overall', 'opportunities', 'opportunity'];
-const baseWord3 = getBaseWord(word);
-if (thirdStressWords.includes(getBaseWord(word))) {
-    stressPattern[2] = 3; // third syllable
-    return true;
-}
-  
-  // Three-syllable words
-    if (len === 3) {
-        // Rule 4: Three-syllable words ending in -er or -ly
-        if (word.match(/(er|ers|ly|lies)$/)) {
-            stressPattern[0] = 3;
-            return true;
-        }
-        
-        // Rule 5: Three-syllable words ending in consonant or y
-        if (word.match(/[bcdfghjklmnpqrstvwxzy]$/)) {
-            stressPattern[0] = 3;
-            return true;
-        }
-    }
-    return false;
-}
-
-
-
-     function isCompoundWord(word) {
-    // Simple compound detection - you can expand this list
-    const compounds = ['homework', 'basketball', 'newspaper', 'bedroom', 'sunshine', 'rainbow', 'headquarter'];
-    return compounds.includes(word) || word.includes('-');
-}
-
-function handleCompoundStress(word, stressPattern, syllables) {
-    // For now, default to first part stress (Rule 9 - compound nouns)
-    // This is simplified - ideally you'd determine part of speech
-    stressPattern[0] = 3;
-    return true;
-}
-
-        function getSentenceStress(word, position, totalWords, intonationType) {
-            // Returns sentence-level stress (0-3)
-            // This represents the word's importance in the overall sentence rhythm
-            
-            if (functionWords.has(word)) return 0;
-            if (emphasisWords.has(word)) return 3;
-            
-            let sentenceStress = 1; // Default for content words
-            
-            switch (intonationType) {
-                case 'statement':
-                    // Nuclear stress typically on the last content word
-                    if (position >= totalWords - 2) sentenceStress = 3;
-                    else if (position === 0) sentenceStress = 2; // Initial stress
-                    break;
-                    
-                case 'wh-question':
-                    // Question word gets primary stress
-                    if (position === 0) sentenceStress = 3;
-                    else if (position >= totalWords - 2) sentenceStress = 2;
-                    break;
-                    
-                case 'yes-no-question':
-                    // Rising intonation, stress distributed more evenly
-                    if (position >= totalWords - 1) sentenceStress = 3;
-                    else if (position <= 1) sentenceStress = 2;
-                    break;
-                    
-                case 'exclamation':
-                    // High overall stress level
-                    sentenceStress = Math.min(3, sentenceStress + 1);
-                    if (position >= totalWords - 2) sentenceStress = 3;
-                    break;
-                    
-                case 'list':
-                    // Each item gets some stress, final item gets most
-                    sentenceStress = 2;
-                    if (position >= totalWords - 1) sentenceStress = 3;
-                    break;
-            }
-            
-            return sentenceStress;
-        }
-
-        function generateDetailedIntonationPath(word, syllables, syllableStress, sentenceStress, position, totalWords, intonationType) {
-    const width = Math.max(word.length * 6 + 10, 30);
-    const height = 30;
-    const baseY = height * 0.7;
-    
-    // Calculate base intonation for sentence type
-    let sentenceContour = getSentenceContour(position, totalWords, intonationType);
-    
-    // Create path points for each syllable
-    const points = [];
-    const syllableWidth = (width - 20) / Math.max(syllables.length, 1);
-    
-    syllables.forEach((syllable, i) => {
-        const x = 10 + (i * syllableWidth) + (syllableWidth / 2);
-        const stress = syllableStress[i];
-        
-        // Base height calculation with more distinct levels
-        let y = baseY;
-        
-        // Adjust for syllable stress (higher = more stressed)
-        switch (stress) {
-            case 3: // Primary stress
-                y = height * 0.1;
-                break;
-            case 2: // Secondary stress  
-                y = height * 0.3;
-                break;
-            case 1: // Weak stress
-                y = height * 0.5;
-                break;
-            case 0: // Unstressed
-                y = height * 0.75;
-                break;
-        }
-        
-        // Adjust for sentence-level stress
-        const sentenceAdjustment = (sentenceStress - 1) * (height * 0.08);
-        y = Math.max(height * 0.05, y - sentenceAdjustment);
-        
-        // Apply sentence contour
-        y += sentenceContour * (height * 0.15);
-        
-        // Ensure y stays within bounds
-        y = Math.max(height * 0.05, Math.min(height * 0.9, y));
-        
-        points.push({ x, y, stress, syllable });
     });
     
-    if (points.length === 1) {
-        // Single syllable - simple curve
-        const p = points[0];
-        const startX = 8;
-        const endX = width - 8;
-        return `M ${startX} ${p.y} L ${p.x - 5} ${p.y} L ${p.x + 5} ${p.y} L ${endX} ${p.y}`;
-    }
-    
-    // Multi-syllable - create path with syllable breaks and diagonal connections
-    let path = `M 2 ${points[0].y}`;
-    
-    for (let i = 0; i < points.length; i++) {
-        const curr = points[i];
-        
-        if (i > 0) {
-            const prev = points[i - 1];
-            
-            // Calculate syllable boundary position
-            const boundaryX = prev.x + (curr.x - prev.x) / 2;
-            
-            // Check if we need diagonal connection (different stress levels)
-            if (prev.y !== curr.y) {
-                // Different stress levels - use diagonal connection
-                path += ` L ${boundaryX - 3} ${prev.y}`;
-                path += ` L ${boundaryX + 3} ${curr.y}`;
-            } else {
-                // Same stress level - use gap as before
-                path += ` L ${boundaryX - 3} ${prev.y}`;
-                path += ` M ${boundaryX + 3} ${curr.y}`;
-            }
-        }
-        
-        // Draw to current syllable position
-        path += ` L ${curr.x} ${curr.y}`;
-        
-        // Add small plateau at syllable peak for clarity
-        if (i < points.length - 1) {
-            const next = points[i + 1];
-            const plateauEnd = Math.min(curr.x + 8, (curr.x + next.x) / 2 - 5);
-            path += ` L ${plateauEnd} ${curr.y}`;
-        }
-    }
-    
-    // End at the edge
-    const lastPoint = points[points.length - 1];
-    path += ` L ${width - 2} ${lastPoint.y}`;
-    
-    return path;
+    return pauseIndices;
 }
 
-        function getSentenceContour(position, totalWords, intonationType) {
-    return 0; // No adjustment to word stress lines
-}
-
-function createSentenceSwoosh(wordContainer, word, position, totalWords, intonationType) {
-    // Only add swoosh to the last word in the sentence
-    if (position < totalWords - 1) {
+// Main analysis function
+async function analyzeIntonationAndWordStress() {
+    const textInput = document.getElementById('textInput');
+    const analysisResult = document.getElementById('analysisResult');
+    
+    if (!textInput || !analysisResult) return;
+    
+    const text = textInput.value.trim();
+    if (!text) {
+        analysisResult.innerHTML = '<p>Please enter some text to analyze.</p>';
         return;
     }
     
-    // Create separate SVG for sentence swoosh
-    const swooshSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    swooshSvg.style.position = 'absolute';
-    swooshSvg.style.top = '-70px';
-    swooshSvg.style.left = '0';
-    swooshSvg.style.right = '-30px';
-    swooshSvg.style.height = '25px';
-    swooshSvg.style.pointerEvents = 'none';
+    analysisResult.innerHTML = '<p>Loading CMU dictionary and analyzing...</p>';
     
-    const svgWidth = Math.max(word.length * 6 + 40, 60);
-    swooshSvg.setAttribute('viewBox', `0 0 ${svgWidth} 25`);
-    swooshSvg.style.width = `${svgWidth}px`;
-    
-    const swooshPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    
-    // Generate clean swoosh without arrowhead
-    let pathData;
-   const endX = svgWidth - 5;
-const midX = (5 + endX) / 2;
-const startX = midX; // Start from the middle instead of the beginning
-    
-  switch (intonationType) {
-    case 'yes-no-question':
-    case 'exclamation':
-        // Half upward swoosh - start at middle, curve up to end
-        pathData = `M ${midX} 18 Q ${midX + (endX - midX) * 0.7} 12 ${endX} 6`;
-        break;
-    default: // wh-question, statement, etc.
-        // Half downward swoosh - start at middle, curve down to end
-        pathData = `M ${midX} 8 Q ${midX + (endX - midX) * 0.7} 14 ${endX} 20`;
-        break;
-}
-    
-    swooshPath.setAttribute('d', pathData);
-    swooshPath.setAttribute('stroke', '#9f7aea');
-    swooshPath.setAttribute('stroke-width', '2.5');
-    swooshPath.setAttribute('fill', 'none');
-    swooshPath.setAttribute('opacity', '0.8');
-    swooshPath.setAttribute('stroke-linecap', 'round');
-    
-    swooshSvg.appendChild(swooshPath);
-    wordContainer.appendChild(swooshSvg);
-}
-        function generateIntonationPath(word, position, totalWords, intonationType, isStressed) {
-            const width = word.length * 8 + 20;
-            const height = 30;
-            const midY = height / 2;
+    try {
+        // Load dictionary
+        await loadCMUDictionary();
+        
+        // Split into sentences
+        const sentences = text.split(/[.!?]+/).filter(s => s.trim());
+        let resultHTML = '';
+        
+        for (const sentence of sentences) {
+            if (!sentence.trim()) continue;
             
-            let startY, endY, controlY;
+            const sentenceType = getSentenceType(sentence);
+            const words = sentence.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w);
+            const pauseIndices = getPauseLocations(words, sentence);
             
-            // Base pitch patterns by intonation type
-            switch (intonationType) {
-                case 'yes-no-question':
-                    // Rising intonation
-                    startY = midY + 5;
-                    endY = midY - 10;
-                    controlY = midY - 5;
-                    break;
-                    
-                case 'wh-question':
-                    // High start, falling
-                    startY = midY - 8;
-                    endY = midY + 8;
-                    controlY = midY;
-                    break;
-                    
-                case 'exclamation':
-                    // High plateau with emphasis
-                    startY = midY - 10;
-                    endY = midY - 8;
-                    controlY = midY - 12;
-                    break;
-                    
-                case 'list':
-                    // Rising on non-final items, falling on final
-                    if (position < totalWords - 1) {
-                        startY = midY + 2;
-                        endY = midY - 5;
-                        controlY = midY - 2;
-                    } else {
-                        startY = midY - 2;
-                        endY = midY + 8;
-                        controlY = midY + 3;
-                    }
-                    break;
-                    
-                default: // statement
-                    // Generally falling, with emphasis on stressed words
-                    const progressRatio = position / (totalWords - 1);
-                    startY = midY - 5 + (progressRatio * 10);
-                    endY = midY + 5 + (progressRatio * 5);
-                    controlY = midY + (progressRatio * 2);
-            }
+            let sentenceHTML = `<div class="sentence ${sentenceType}">`;
             
-            // Modify for stress
-            if (isStressed) {
-                startY -= 5;
-                controlY -= 8;
-                if (intonationType === 'exclamation') {
-                    controlY -= 5; // Extra emphasis for exclamations
+            words.forEach((word, index) => {
+                // Get stress pattern
+                let stressPattern, pronunciation;
+                
+                if (cmuDict && cmuDict[word.toUpperCase()]) {
+                    pronunciation = cmuDict[word.toUpperCase()];
+                    stressPattern = getStressPattern(pronunciation);
+                } else {
+                    stressPattern = getFallbackStressPattern(word);
+                    pronunciation = null;
                 }
-            }
+                
+                // Create stress bars
+                const stressBars = stressPattern.map(stress => 
+                    `<div class="stress-bar stress-${stress}"></div>`
+                ).join('');
+                
+                // Add word visualization
+                sentenceHTML += `
+                    <div class="word-container">
+                        <div class="word">${word}</div>
+                        <div class="stress-pattern">${stressBars}</div>
+                        ${pronunciation ? `<div class="pronunciation">${pronunciation}</div>` : ''}
+                    </div>
+                `;
+                
+                // Add pause marker if needed
+                if (pauseIndices.includes(index)) {
+                    sentenceHTML += '<div class="pause-marker">|</div>';
+                }
+            });
             
-            // Ensure values stay within bounds
-            startY = Math.max(2, Math.min(height - 2, startY));
-            endY = Math.max(2, Math.min(height - 2, endY));
-            controlY = Math.max(2, Math.min(height - 2, controlY));
-            
-            // Create smooth curve
-            const startX = 5;
-            const endX = width - 5;
-            const controlX = width / 2;
-            
-            return `M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}`;
+            sentenceHTML += '</div>';
+            resultHTML += sentenceHTML;
         }
-
-        // Initialize with default text
-        document.addEventListener('DOMContentLoaded', function() {
-            analyzeIntonation();
-        });
-     
-        // Allow Enter key to analyze
-        document.getElementById('textInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                analyzeIntonation();
-            }
-        });
+        
+        analysisResult.innerHTML = resultHTML;
+        
+    } catch (error) {
+        analysisResult.innerHTML = '<p>Error analyzing text. Please try again.</p>';
+        console.error('Analysis error:', error);
+    }
+}
    </script>
 </body>
 </html>
