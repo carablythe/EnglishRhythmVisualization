@@ -195,53 +195,58 @@
     <div class="container">
         <h1>English Rhythm Visualization</h1>
         <p class="subtitle">Visualize English speech patterns and stress</p>
+       <p class="subtitle">英語の音声パターンと強勢を視覚化</p>
         
-        <textarea id="textInput" placeholder="Enter your English text here to see natural word stress, sentences stress, pauses and intonation patterns!">Enter text here</textarea>
+        <textarea id="textInput" placeholder="Enter your English text here to see natural word stress, sentences stress, pauses and intonation patterns!">Enter English text here (ここに英語のテキストを入力してください)</textarea>
         
         
-        <button onclick="analyzeIntonation()">Analyze Rhythm</button>
+            <button onclick="analyzeIntonation()">Analyze Rhythm (リズム分析)</button>
         
         <div id="visualization" class="visualization">
             <p style="text-align: center; color: #718096; font-style: italic;">
-                Enter text above and click "Analyze Rhythm" to see the speech pattern visualization
+                Enter English text above and click "Analyze Rhythm" to see the speech pattern visualization. Then see below for how to interpret your results.
             </p>
+          <p style="text-align: center; color: #718096; font-style: italic;">上のテキストボックスに英語を入力し、「リズム分析」をクリックすると、発話パターンの可視化が表示されます。結果の解釈方法については下記の凡例をご覧ください。</p>
         </div>
         
         <div class="legend">
-            <h3>Key</h3>
+            <h3>Key (凡例)</h3>
+          
+           <h4>Word/Syllable Stress(文強勢): </h4>
+          <span>Please pay attention to the line above each word for the syllable stress. The line going up means that part of the word is stressed and going down means there is an unstressed syllable. (それぞれの単語の上にある線に注目してください。線が上に上がっているところは、その部分にアクセント（強勢）があることを示し、下がっているところはアクセントのない音節を表しています。)</span>
+             <h4>Sentence Stress(文強勢): </h4>
             <div class="legend-item">
                 <div class="legend-line" style="background: #e53e3e;"></div>
-                <span>Primary stress (longest, loudest)</span>
+                <span>Primary sentence stress: longest, loudest (第一文強勢: 最も長く、最も大きく)</span>
             </div>
             <div class="legend-item">
                 <div class="legend-line" style="background: #f56500;"></div>
-                <span>Secondary stress (medium)</span>
+                <span>Secondary sentence stress: medium (第二文強勢: 中程度)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-line" style="background: #667eea;"></div>
+                <span>Weak sentence stress: slightly elevated (弱文強勢: やや高め)</span>
             </div>
             <div class="legend-item">
                 <div class="legend-line" style="background: #a0aec0;"></div>
-                <span>Unstressed (shortest, quietest)</span>
+                <span>Unstressed: shortest, quietest (無強勢: 最も短く、最も小さく)</span>
             </div>
+            
+               <h4>Breath/Pause Marks(息継ぎ・ポーズマーク): </h4>
             <div class="legend-item">
-                <div style="width: 2px; height: 20px; background-color: #4a5568; margin-right: 10px; opacity: 0.7;"></div>
-                <span>Breath/pause marks (at punctuation, before conjunctions, before relative clauses or long prepositional phrases)</span>
+                <div style="width: 2px; height: 30px; background-color: #4a5568; margin-right: 10px; opacity: 0.7;"></div>
+            
+                <span>　Such as after punctuation, before conjunctions, before relative clauses or long prepositional phrases (句読点、接続詞の前、関係節や長い前置詞句の前等)</span>
             </div>
     
-           
+           <h4>Intonation (抑揚): </h4>
             <div class="legend-item">
-              
-               <div class="legend-line" style="background: #667eea; width: 30px;
-  height: 2px;
-  border-radius: 0 20 200px 0; 
-  transform: rotate(-15deg); 
-  transform-origin: left bottom;"></div>
-             <span>Rising pitch: Yes/No Questions, tag questions</span>
+               <div class="legend-line" style="background: #667eea; width: 30px; height: 2px; border-radius: 0 20 200px 0; transform: rotate(-15deg); transform-origin: left bottom;"></div>
+               <span>Rising pitch: Yes/No Questions, tag questions (上昇調：Yes/No疑問文、付加疑問文)</span>
             </div>
-            <div class="legend-item"><div class="legend-line" style="background: #667eea; width: 30px;
-  height: 2px;
-  border-radius: 0 20 200px 0; 
-  transform: rotate(15deg); 
-  transform-origin: left top;"></div>
-                <span>Falling pitch: Statements, commands, open-ended (Wh-questions)</span>
+            <div class="legend-item">
+                <div class="legend-line" style="background: #667eea; width: 30px; height: 2px; border-radius: 0 20 200px 0; transform: rotate(15deg); transform-origin: left top;"></div>
+                <span>Falling pitch: Statements, commands, open-ended/Wh-questions (下降調：平叙文、命令文、Wh疑問文) </span>
             </div>
         </div>
     </div>
@@ -412,13 +417,168 @@ const emphasisWords = new Set([
   "perhaps"
 ]);
 
+// Fallback POS dictionary for words Compromise often misses
+const fallbackNouns = new Set([
+  "stress", "level", "levels", "type", "types", "information", "emphasis",
+  "sentence", "sentences", "degree", "degrees", "word", "words", "model",
+  "primary", "secondary", "tertiary", "description", "descriptions",
+  "tonic", "contrast", "standard", "frequency", "encourage", "english",
+  "language", "speech", "pattern", "patterns", "rhythm", "syllable", "syllables",
+  "pronunciation", "intonation", "pitch", "tone", "vowel", "consonant",
+  "phoneme", "phonemes", "sound", "sounds", "accent", "dialect",
+  "question", "statement", "exclamation", "command", "phrase", "clause",
+  "noun", "verb", "adjective", "adverb", "pronoun", "article",
+  "example", "examples", "case", "cases", "rule", "rules", "exception",
+  "category", "categories", "group", "groups", "set", "sets",
+  "business", "market", "customer", "customers", "product", "products",
+  "service", "services", "company", "companies", "opportunity", "opportunities",
+  "challenge", "challenges", "solution", "solutions", "problem", "problems",
+  "strategy", "strategies", "goal", "goals", "objective", "objectives",
+  "result", "results", "outcome", "outcomes", "performance", "quality",
+  "value", "cost", "costs", "price", "prices", "revenue", "profit",
+  "expense", "expenses", "budget", "investment", "growth", "change",
+  "improvement", "efficiency", "effectiveness", "success", "failure",
+  "risk", "risks", "benefit", "benefits", "advantage", "disadvantage",
+  "process", "processes", "system", "systems", "method", "methods",
+  "approach", "approaches", "technique", "techniques", "tool", "tools",
+  "resource", "resources", "data", "analysis", "report", "reports",
+  "research", "study", "studies", "finding", "findings", "evidence",
+  "fact", "facts", "detail", "details", "aspect", "aspects",
+  "feature", "features", "element", "elements", "component", "components",
+  "part", "parts", "section", "sections", "area", "areas", "field",
+  "topic", "topics", "subject", "subjects", "issue", "issues",
+  "matter", "matters", "point", "points", "factor", "factors",
+  "reason", "reasons", "cause", "causes", "effect", "effects",
+  "impact", "impacts", "influence", "consequence", "consequences",
+  "relationship", "relationships", "connection", "connections", "link",
+  "difference", "differences", "similarity", "similarities", "comparison",
+  "time", "period", "moment", "day", "week", "month", "year",
+  "place", "location", "position", "situation", "condition", "state",
+  "way", "manner", "form", "kind", "sort", "variety"
+]);
+
+const fallbackVerbs = new Set([
+  "convey", "conveys", "conveyed", "conveying",
+  "include", "includes", "included", "including",
+  "mention", "mentions", "mentioned", "mentioning",
+  "describe", "describes", "described", "describing",
+  "indicate", "indicates", "indicated", "indicating",
+  "suggest", "suggests", "suggested", "suggesting",
+  "show", "shows", "showed", "shown", "showing",
+  "demonstrate", "demonstrates", "demonstrated", "demonstrating",
+  "represent", "represents", "represented", "representing",
+  "emphasize", "emphasizes", "emphasized", "emphasizing",
+  "stress", "stresses", "stressed", "stressing",
+  "focus", "focuses", "focused", "focusing",
+  "highlight", "highlights", "highlighted", "highlighting",
+  "illustrate", "illustrates", "illustrated", "illustrating",
+  "explain", "explains", "explained", "explaining",
+  "clarify", "clarifies", "clarified", "clarifying",
+  "define", "defines", "defined", "defining",
+  "identify", "identifies", "identified", "identifying",
+  "recognize", "recognizes", "recognized", "recognizing",
+  "distinguish", "distinguishes", "distinguished", "distinguishing",
+  "compare", "compares", "compared", "comparing",
+  "contrast", "contrasts", "contrasted", "contrasting",
+  "analyze", "analyzes", "analyzed", "analyzing",
+  "examine", "examines", "examined", "examining",
+  "consider", "considers", "considered", "considering",
+  "discuss", "discusses", "discussed", "discussing",
+  "present", "presents", "presented", "presenting",
+  "provide", "provides", "provided", "providing",
+  "offer", "offers", "offered", "offering",
+  "give", "gives", "gave", "given", "giving",
+  "contain", "contains", "contained", "containing",
+  "involve", "involves", "involved", "involving",
+  "require", "requires", "required", "requiring",
+  "need", "needs", "needed", "needing",
+  "use", "uses", "used", "using",
+  "apply", "applies", "applied", "applying",
+  "employ", "employs", "employed", "employing",
+  "create", "creates", "created", "creating",
+  "produce", "produces", "produced", "producing",
+  "generate", "generates", "generated", "generating",
+  "develop", "develops", "developed", "developing",
+  "establish", "establishes", "established", "establishing",
+  "form", "forms", "formed", "forming",
+  "build", "builds", "built", "building",
+  "make", "makes", "made", "making",
+  "achieve", "achieves", "achieved", "achieving",
+  "reach", "reaches", "reached", "reaching",
+  "obtain", "obtains", "obtained", "obtaining",
+  "gain", "gains", "gained", "gaining",
+  "receive", "receives", "received", "receiving",
+  "acquire", "acquires", "acquired", "acquiring",
+  "improve", "improves", "improved", "improving",
+  "enhance", "enhances", "enhanced", "enhancing",
+  "increase", "increases", "increased", "increasing",
+  "decrease", "decreases", "decreased", "decreasing",
+  "reduce", "reduces", "reduced", "reducing",
+  "maintain", "maintains", "maintained", "maintaining",
+  "support", "supports", "supported", "supporting",
+  "help", "helps", "helped", "helping",
+  "enable", "enables", "enabled", "enabling",
+  "allow", "allows", "allowed", "allowing",
+  "cause", "causes", "caused", "causing",
+  "lead", "leads", "led", "leading",
+  "result", "results", "resulted", "resulting",
+  "occur", "occurs", "occurred", "occurring",
+  "happen", "happens", "happened", "happening",
+  "exist", "exists", "existed", "existing",
+  "appear", "appears", "appeared", "appearing",
+  "seem", "seems", "seemed", "seeming",
+  "become", "becomes", "became", "becoming",
+  "remain", "remains", "remained", "remaining",
+  "continue", "continues", "continued", "continuing"
+]);
+
+const fallbackAdjectives = new Set([
+  "unstressed", "stressed", "primary", "secondary", "tertiary",
+  "emphatic", "contrastive", "tonic", "basic", "standard",
+  "physical", "rare", "different", "various", "several",
+  "important", "significant", "major", "minor", "main",
+  "common", "uncommon", "typical", "unusual", "normal",
+  "regular", "irregular", "standard", "special", "particular",
+  "specific", "general", "certain", "possible", "probable",
+  "necessary", "essential", "critical", "crucial", "vital",
+  "useful", "helpful", "effective", "efficient", "practical",
+  "simple", "complex", "complicated", "difficult", "easy",
+  "clear", "unclear", "obvious", "apparent", "evident",
+  "strong", "weak", "high", "low", "large", "small",
+  "great", "little", "big", "huge", "tiny", "massive",
+  "positive", "negative", "good", "bad", "better", "worse",
+  "best", "worst", "excellent", "poor", "superior", "inferior",
+  "new", "old", "recent", "current", "modern", "traditional",
+  "early", "late", "first", "last", "next", "previous",
+  "similar", "different", "same", "other", "another", "such",
+  "full", "empty", "complete", "incomplete", "total", "partial",
+  "whole", "entire", "all", "some", "many", "few",
+  "much", "little", "more", "less", "most", "least",
+  "long", "short", "wide", "narrow", "broad", "deep",
+  "direct", "indirect", "immediate", "gradual", "sudden", "quick",
+  "fast", "slow", "rapid", "swift", "steady", "constant",
+  "consistent", "variable", "stable", "unstable", "fixed", "flexible",
+  "hard", "soft", "firm", "solid", "liquid", "dense",
+  "light", "heavy", "thick", "thin", "coarse", "fine",
+  "rough", "smooth", "sharp", "dull", "bright", "dark",
+  "loud", "quiet", "noisy", "silent", "audible", "inaudible"
+]);
+
+const numberWords = new Set([
+  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+  "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", 
+  "seventeen", "eighteen", "nineteen", "twenty", "thirty", "forty", "fifty",
+  "sixty", "seventy", "eighty", "ninety", "hundred", "thousand", "million",
+  "billion", "trillion", "first", "second", "third", "fourth", "fifth",
+  "sixth", "seventh", "eighth", "ninth", "tenth", "eleventh", "twelfth"
+]);
+
+
 function analyzeSentencePOS(sentence) {
-  // Analyze entire sentence and return POS tags for each word
   const words = sentence.trim().split(/\s+/);
   const posMap = new Map();
 
   try {
-    // Remove punctuation for NLP analysis but keep original words
     const cleanSentence = sentence.replace(/[.!?,;:]/g, "");
     const doc = nlp(cleanSentence);
 
@@ -431,7 +591,6 @@ function analyzeSentencePOS(sentence) {
     // Extract all verbs
     doc.verbs().forEach((verb) => {
       const text = verb.text().toLowerCase();
-      // Don't override if already marked as noun (some words can be both)
       if (!posMap.has(text)) {
         posMap.set(text, "verb");
       }
@@ -479,6 +638,38 @@ function analyzeSentencePOS(sentence) {
   } catch (error) {
     console.warn("Sentence POS analysis failed:", error);
   }
+
+  // ADD FALLBACK DICTIONARY CHECKS HERE
+  // Check each word against fallback dictionaries if not already tagged
+words.forEach((word, index) => {
+  const cleanWord = word.toLowerCase().replace(/[^\w']/g, "");
+  if (!posMap.has(cleanWord) && cleanWord) {
+    // Check if it's a number (numeral or word form)
+    if (cleanWord.match(/^\d+$/) || numberWords.has(cleanWord)) {
+      posMap.set(cleanWord, "number");
+      return; // Skip further checks for numbers
+    }
+    
+    // Special case: -ed words before nouns are likely adjectives
+    if (cleanWord.endsWith('ed') && index < words.length - 1) {
+      const nextWord = words[index + 1].toLowerCase().replace(/[^\w']/g, "");
+      // If next word is a noun (either already tagged or in fallback), treat as adjective
+      if (posMap.get(nextWord) === 'noun' || fallbackNouns.has(nextWord)) {
+        posMap.set(cleanWord, "adjective");
+        return; // Skip further checks for this word
+      }
+    }
+    
+    // Check fallback dictionaries in order of priority
+    if (fallbackNouns.has(cleanWord)) {
+      posMap.set(cleanWord, "noun");
+    } else if (fallbackVerbs.has(cleanWord)) {
+      posMap.set(cleanWord, "verb");
+    } else if (fallbackAdjectives.has(cleanWord)) {
+      posMap.set(cleanWord, "adjective");
+    }
+  }
+});
 
   return posMap;
 }
@@ -1364,6 +1555,7 @@ function getPOSBasedStressFromMap(word, posMap) {
   if (!word || word.length === 0) return 0;
 
   const lowerWord = word.toLowerCase();
+  
 
   // Check function words first
   if (functionWords.has(lowerWord)) return 0;
@@ -1398,6 +1590,8 @@ function getPOSBasedStressFromMap(word, posMap) {
   // Get POS from map
   const pos = posMap.get(lowerWord);
 
+// Numbers always get primary stress
+if (pos === "number") return 3;
   if (pos === "noun" || pos === "verb") return 3;
   if (pos === "adjective" || pos === "adverb") return 2;
   if (pos === "pronoun") return 1;
