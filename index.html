@@ -188,8 +188,68 @@
         }
    </style>
     
-     <script src="https://cdn.jsdelivr.net/npm/compromise@14.14.0/builds/compromise.min.js"></script>
+    
+    
+</head>
+<body>
+    <div class="container">
+        <h1>English Rhythm Visualization</h1>
+        <p class="subtitle">Visualize English speech patterns and stress</p>
+        
+        <textarea id="textInput" placeholder="Enter your English text here to see natural word stress, sentences stress, pauses and intonation patterns!">Enter text here</textarea>
+        
+        
+        <button onclick="analyzeIntonation()">Analyze Rhythm</button>
+        
+        <div id="visualization" class="visualization">
+            <p style="text-align: center; color: #718096; font-style: italic;">
+                Enter text above and click "Analyze Rhythm" to see the speech pattern visualization
+            </p>
+        </div>
+        
+        <div class="legend">
+            <h3>Key</h3>
+            <div class="legend-item">
+                <div class="legend-line" style="background: #e53e3e;"></div>
+                <span>Primary stress (longest, loudest)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-line" style="background: #f56500;"></div>
+                <span>Secondary stress (medium)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-line" style="background: #a0aec0;"></div>
+                <span>Unstressed (shortest, quietest)</span>
+            </div>
+            <div class="legend-item">
+                <div style="width: 2px; height: 20px; background-color: #4a5568; margin-right: 10px; opacity: 0.7;"></div>
+                <span>Breath/pause marks (at punctuation, before conjunctions, before relative clauses or long prepositional phrases)</span>
+            </div>
+    
+           
+            <div class="legend-item">
+              
+               <div class="legend-line" style="background: #667eea; width: 30px;
+  height: 2px;
+  border-radius: 0 20 200px 0; 
+  transform: rotate(-15deg); 
+  transform-origin: left bottom;"></div>
+             <span>Rising pitch: Yes/No Questions, tag questions</span>
+            </div>
+            <div class="legend-item"><div class="legend-line" style="background: #667eea; width: 30px;
+  height: 2px;
+  border-radius: 0 20 200px 0; 
+  transform: rotate(15deg); 
+  transform-origin: left top;"></div>
+                <span>Falling pitch: Statements, commands, open-ended (Wh-questions)</span>
+            </div>
+        </div>
+    </div>
 
+     <script src="https://cdn.jsdelivr.net/npm/compromise@14.14.0/builds/compromise.min.js"></script>
+ 
+    <!-- Load compromise.js FIRST -->
+    
     <script>
      
 // CMU Dictionary cache
@@ -1618,62 +1678,5 @@ document.getElementById("textInput").addEventListener("keypress", function (e) {
 });
 
    </script>
-    
-</head>
-<body>
-    <div class="container">
-        <h1>English Rhythm Visualization</h1>
-        <p class="subtitle">Visualize English speech patterns and stress</p>
-        
-        <textarea id="textInput" placeholder="Enter your English text here to see natural word stress, sentences stress, pauses and intonation patterns!">Enter text here</textarea>
-        
-        
-        <button onclick="analyzeIntonation()">Analyze Rhythm</button>
-        
-        <div id="visualization" class="visualization">
-            <p style="text-align: center; color: #718096; font-style: italic;">
-                Enter text above and click "Analyze Rhythm" to see the speech pattern visualization
-            </p>
-        </div>
-        
-        <div class="legend">
-            <h3>Key</h3>
-            <div class="legend-item">
-                <div class="legend-line" style="background: #e53e3e;"></div>
-                <span>Primary stress (longest, loudest)</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-line" style="background: #f56500;"></div>
-                <span>Secondary stress (medium)</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-line" style="background: #a0aec0;"></div>
-                <span>Unstressed (shortest, quietest)</span>
-            </div>
-            <div class="legend-item">
-                <div style="width: 2px; height: 20px; background-color: #4a5568; margin-right: 10px; opacity: 0.7;"></div>
-                <span>Breath/pause marks (at punctuation, before conjunctions, before relative clauses or long prepositional phrases)</span>
-            </div>
-    
-           
-            <div class="legend-item">
-              
-               <div class="legend-line" style="background: #667eea; width: 30px;
-  height: 2px;
-  border-radius: 0 20 200px 0; 
-  transform: rotate(-15deg); 
-  transform-origin: left bottom;"></div>
-             <span>Rising pitch: Yes/No Questions, tag questions</span>
-            </div>
-            <div class="legend-item"><div class="legend-line" style="background: #667eea; width: 30px;
-  height: 2px;
-  border-radius: 0 20 200px 0; 
-  transform: rotate(15deg); 
-  transform-origin: left top;"></div>
-                <span>Falling pitch: Statements, commands, open-ended (Wh-questions)</span>
-            </div>
-        </div>
-    </div>
-
 </body>
 </html>
