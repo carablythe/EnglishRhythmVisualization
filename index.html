@@ -420,7 +420,7 @@ function analyzeSentencePOS(sentence) {
   try {
     // Remove punctuation for NLP analysis but keep original words
     const cleanSentence = sentence.replace(/[.!?,;:]/g, "");
-    const doc = compromise(cleanSentence);
+    const doc = nlp(cleanSentence);
 
     // Extract all nouns with their text
     doc.nouns().forEach((noun) => {
