@@ -120,7 +120,7 @@
 }
 
 .breath-mark[style*="left"] {
-    right: auto; /* Override the right positioning for left-positioned marks */
+    right: auto; 
 }
         
         .word-text {
@@ -202,11 +202,11 @@
         
             <button onclick="analyzeIntonation()">Analyze Rhythm (リズム分析)</button>
         
-        <div id="visualization" class="visualization">
+        <div>
             <p style="text-align: center; color: #718096; font-style: italic;">
                 Enter English text above and click "Analyze Rhythm" to see the speech pattern visualization. Then see below for how to interpret your results.
             </p>
-          <p style="text-align: center; color: #718096; font-style: italic;">上のテキストボックスに英語を入力し、「リズム分析」をクリックすると、発話パターンの可視化が表示されます。結果の解釈方法については下記の凡例をご覧ください。</p>
+          <p style="text-align: center; color: #718096; font-style: italic;"> 上のテキストボックスに英語を入力し、「リズム分析」をクリックすると、発話パターンの可視化が表示されます。結果の解釈方法については下記の凡例をご覧ください。</p>
         </div>
         
         <div class="legend">
@@ -272,7 +272,7 @@ function loadCMUDictionary() {
   isLoading = true;
   fetch(
     "https://raw.githubusercontent.com/Timmald/CMUdict_json/refs/heads/main/cmu_dict.json"
-  )
+  ) //Thank you to Github user Timmald for creating a raw file of the CMU dictionary API!
     .then((response) => response.json())
     .then((data) => {
       cmuDict = data;
@@ -285,7 +285,6 @@ function loadCMUDictionary() {
     });
 }
 
-// Extract stress pattern from CMU pronunciation
 function getStressPatternFromCMU(pronunciation) {
   if (!pronunciation) return [];
 
@@ -302,7 +301,6 @@ function getStressPatternFromCMU(pronunciation) {
   return stressPattern.length > 0 ? stressPattern : [];
 }
 
-// YOUR ORIGINAL CODE STARTS HERE - with CMU integration added
 
 // Common English function words (typically unstressed)
 const functionWords = new Set([
@@ -643,7 +641,6 @@ function analyzeSentencePOS(sentence) {
     console.warn("Sentence POS analysis failed:", error);
   }
 
-  // ADD FALLBACK DICTIONARY CHECKS HERE
   // Check each word against fallback dictionaries if not already tagged
 words.forEach((word, index) => {
   const cleanWord = word.toLowerCase().replace(/[^\w']/g, "");
@@ -732,7 +729,7 @@ function analyzeIntonation() {
           posMap
         );
 
-        // Create SVG for intonation line - size it to match word width more closely
+
         const svg = document.createElementNS(
           "http://www.w3.org/2000/svg",
           "svg"
@@ -758,11 +755,10 @@ function analyzeIntonation() {
         );
         path.setAttribute("d", pathData);
 
-        // Color coding based on stress levels
-        // Combine syllable stress and sentence stress
+        // Color coding based on sentence stress
+
         const maxSyllableStress = Math.max(...stressPattern);
 
-        // Color coding based on combined stress levels
         let strokeColor = "#a0aec0"; // Default light gray for unstressed
         if (sentenceStress >= 3) strokeColor = "#e53e3e";
         // Red for primary stress
@@ -1171,7 +1167,7 @@ function getSyllableStress(word, syllables, isAcronym = false) {
     }
   }
 
-  // Fallback to your original stress detection logic
+  // Fallback to original stress detection logic
   if (isAcronym) {
     return new Array(syllables.length).fill(3);
   }
@@ -1201,7 +1197,7 @@ function getSyllableStress(word, syllables, isAcronym = false) {
   return stressPattern;
 }
 
-// [Continue with all your other original functions: applyStressRules, getSentenceStress, generateDetailedIntonationPath, createSentenceSwoosh, etc.]
+// [Continue with all other original functions: applyStressRules, getSentenceStress, generateDetailedIntonationPath, createSentenceSwoosh, etc.]
 
 function applyStressRules(word, stressPattern, syllables) {
   const len = syllables.length;
@@ -1503,8 +1499,7 @@ function isCompoundWord(word) {
 }
 
 function handleCompoundStress(word, stressPattern, syllables) {
-  // For now, default to first part stress (Rule 9 - compound nouns)
-  // This is simplified - ideally you'd determine part of speech
+  // Default to first part stress (Rule 9 - compound nouns)
   stressPattern[0] = 3;
   return true;
 }
@@ -1718,7 +1713,7 @@ function generateDetailedIntonationPath(
 }
 
 function getSentenceContour(position, totalWords, intonationType) {
-  return 0; // No adjustment to word stress lines
+  return 0; 
 }
 
 function createSentenceSwoosh(
@@ -1728,7 +1723,7 @@ function createSentenceSwoosh(
   totalWords,
   intonationType
 ) {
-  // Only add swoosh to the last word in the sentence
+  // For now, only add swoosh to the last word in the sentence
   if (position < totalWords - 1) {
     return;
   }
