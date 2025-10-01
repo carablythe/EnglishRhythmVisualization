@@ -274,7 +274,7 @@ function loadCMUDictionary() {
   isLoading = true;
   fetch(
     "https://raw.githubusercontent.com/Timmald/CMUdict_json/refs/heads/main/cmu_dict.json"
-  ) //Thank you to Github user Timmald for creating a raw file of the CMU dictionary API!
+  )
     .then((response) => response.json())
     .then((data) => {
       cmuDict = data;
@@ -287,6 +287,7 @@ function loadCMUDictionary() {
     });
 }
 
+// Extract stress pattern from CMU pronunciation
 function getStressPatternFromCMU(pronunciation) {
   if (!pronunciation) return [];
 
@@ -304,119 +305,23 @@ function getStressPatternFromCMU(pronunciation) {
 }
 
 
+
 // Common English function words (typically unstressed)
 const functionWords = new Set([
-  "a",
-  "an",
-  "the",
-  "and",
-  "or",
-  "but",
-  "in",
-  "on",
-  "at",
-  "to",
-  "for",
-  "of",
-  "with",
-  "by",
-  "from",
-  "about",
-  "into",
-  "through",
-  "during",
-  "before",
-  "after",
-  "above",
-  "below",
-  "enough",
-  "up",
-  "down",
-  "out",
-  "off",
-  "over",
-  "under",
-  "around",
-  "within",
-  "again",
-  "further",
-  "then",
-  "once",
-  "is",
-  "am",
-  "are",
-  "was",
-  "were",
-  "be",
-  "been",
-  "being",
-  "have",
-  "has",
-  "had",
-  "do",
-  "does",
-  "did",
-  "will",
-  "would",
-  "could",
-  "should",
-  "may",
-  "might",
-  "must",
-  "i",
-  "you",
-  "he",
-  "she",
-  "it",
-  "we",
-  "they",
-  "me",
-  "him",
-  "us",
-  "them",
-  "my",
-  "your",
-  "his",
-  "her",
-  "its",
-  "our",
-  "their",
-  "this",
-  "that",
-  "these",
-  "those",
-  "until",
-  "because",
-  "without",
-  "between",
-  "among",
-  "beyond",
-  "beneath",
-  "beside",
-  "become"
+  'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+  'from', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'enough',
+  'up', 'down', 'out', 'off', 'over', 'under', 'around', 'within', 'again', 'further', 'then', 'once',
+  'until', 'because', 'without', 'between', 'among', 'beyond', 'beneath', 'beside', 'become'
 ]);
+
 
 // Words that typically receive emphasis
 const emphasisWords = new Set([
   "very",
-  "really",
-  "absolutely",
-  "completely",
-  "totally",
-  "extremely",
-  "incredibly",
   "amazing",
-  "wonderful",
   "terrible",
-  "awful",
-  "fantastic",
   "great",
   "excellent",
-  "never",
-  "always",
-  "definitely",
-  "certainly",
-  "probably",
   "maybe",
   "perhaps"
 ]);
@@ -643,6 +548,20 @@ function analyzeSentencePOS(sentence) {
     console.warn("Sentence POS analysis failed:", error);
   }
 
+  // Override incorrect compromise.js tags for common pronouns
+const pronounOverrides = new Set([
+  'i','you','he','she','it','we','they','me','him','her','us','them',
+  'my','your','his','her','its','our','their','this','that','these','those'
+]);
+
+words.forEach(word => {
+  const cleanWord = word.toLowerCase().replace(/[^\w']/g, "");
+  if (pronounOverrides.has(cleanWord)) {
+    posMap.set(cleanWord, 'pronoun');
+  }
+});
+  
+  
   // Check each word against fallback dictionaries if not already tagged
 words.forEach((word, index) => {
   const cleanWord = word.toLowerCase().replace(/[^\w']/g, "");
@@ -653,15 +572,36 @@ words.forEach((word, index) => {
       return; // Skip further checks for numbers
     }
     
-    // Special case: -ed words before nouns are likely adjectives
-    if (cleanWord.endsWith('ed') && index < words.length - 1) {
-      const nextWord = words[index + 1].toLowerCase().replace(/[^\w']/g, "");
-      // If next word is a noun (either already tagged or in fallback), treat as adjective
-      if (posMap.get(nextWord) === 'noun' || fallbackNouns.has(nextWord)) {
+  
+// Special case: -ed words before nouns are likely adjectives ONLY in attributive position
+if (cleanWord.endsWith('ed') && index < words.length - 1) {
+  const nextWord = words[index + 1].toLowerCase().replace(/[^\w']/g, "");
+  
+  // Check if next word is a noun (3-tier check: compromise.js, fallback list, then suffixes)
+  const isNoun = posMap.get(nextWord) === 'noun' || 
+                 fallbackNouns.has(nextWord) ||
+                 nextWord.match(/(tion|sion|ness|ment|ance|ence|ancy|ency|ity|ty|ism|ist|er|or|age|ure|ship|hood|dom|tude|ery|ary|ory|ant|ent|logy|gy|metry|graphy|phy|ics|cy|ade|ette|let|ee|eer)$/);
+  
+  if (isNoun) {
+    // Additional check: is there a determiner, possessive, or quantifier before this -ed word?
+    // These indicate attributive adjective position
+    const determiners = new Set(['a', 'an', 'the', 'this', 'that', 'these', 'those', 'my', 'your', 'his', 'her', 'its', 'our', 'their', 'some', 'any', 'no', 'many', 'much', 'several', 'few', 'all', 'both', 'each', 'every']);
+    
+    if (index > 0) {
+      const prevWord = words[index - 1].toLowerCase().replace(/[^\w']/g, "");
+      // If preceded by determiner/possessive, treat as adjective
+      if (determiners.has(prevWord)) {
         posMap.set(cleanWord, "adjective");
-        return; // Skip further checks for this word
+        return;
       }
     }
+    
+    // If -ed word is the first word after punctuation or at sentence start, likely a verb
+    if (index === 0 || words[index - 1].match(/[.!?,;:]/)) {
+      return; // Don't tag as adjective, let it fall through to verb checking
+    }
+  }
+}
     
     // Check fallback dictionaries in order of priority
     if (fallbackNouns.has(cleanWord)) {
@@ -731,7 +671,7 @@ function analyzeIntonation() {
           posMap
         );
 
-
+        // Create SVG for intonation line - size it to match word width more closely
         const svg = document.createElementNS(
           "http://www.w3.org/2000/svg",
           "svg"
@@ -757,10 +697,11 @@ function analyzeIntonation() {
         );
         path.setAttribute("d", pathData);
 
-        // Color coding based on sentence stress
-
+        // Color coding based on stress levels
+        // Combine syllable stress and sentence stress
         const maxSyllableStress = Math.max(...stressPattern);
 
+        // Color coding based on combined stress levels
         let strokeColor = "#a0aec0"; // Default light gray for unstressed
         if (sentenceStress >= 3) strokeColor = "#e53e3e";
         // Red for primary stress
@@ -828,7 +769,7 @@ function detectIntonationType(sentence) {
 
   if (lastChar === "?") {
     // Distinguish between yes/no questions and wh-questions
-    const whWords = ["what", "where", "when", "why", "who", "how", "which"];
+    const whWords = ["what", "where", "when", "why", "who", "how", "which", "whose"];
     const firstWord = trimmed.split(" ")[0].toLowerCase().replace(/[^\w]/g, "");
     return whWords.includes(firstWord) ? "wh-question" : "yes-no-question";
   } else if (lastChar === "!") {
@@ -849,7 +790,6 @@ function shouldAddBreathMark(word, index, words) {
 
   return false;
 }
-
 function shouldAddBreathMarkBefore(word, index, words) {
   // Don't add breath mark before the first word
   if (index === 0) {
@@ -864,97 +804,36 @@ function shouldAddBreathMarkBefore(word, index, words) {
 
   // Common conjunctions that create natural pauses
   const conjunctions = new Set([
-    "and",
-    "but",
-    "or",
-    "so",
-    "yet",
-    "for",
-    "nor",
-    "because",
-    "although",
-    "though",
-    "however",
-    "nonetheless",
-    "while",
-    "since",
-    "unless",
-    "until",
-    "if",
-    "when",
-    "where",
-    "whereas"
+    "and", "but", "or", "so", "yet", "for", "nor", "because", "although",
+    "though", "however", "nonetheless", "while", "since", "unless", "until",
+    "if", "when", "where", "whereas"
   ]);
+  
   const cleanWord = word.toLowerCase().replace(/[^\w]/g, "");
-
+  
   // Relative pronouns that start clauses
   const relativePronouns = new Set([
-    "who",
-    "whom",
-    "whose",
-    "which",
-    "that",
-    "where",
-    "when"
+    "who", "whom", "whose", "which", "that", "where", "when"
   ]);
-
+  
   // Long prepositional phrases (preposition + 3+ words)
   const prepositions = new Set([
-    "in",
-    "on",
-    "at",
-    "by",
-    "for",
-    "with",
-    "without",
-    "through",
-    "during",
-    "before",
-    "after",
-    "above",
-    "below",
-    "under",
-    "over",
-    "between",
-    "among",
-    "beyond",
-    "beneath",
-    "beside"
+    "in", "on", "at", "by", "for", "with", "without", "through", "during",
+    "before", "after", "above", "below", "under", "over", "between", "among",
+    "beyond", "beneath", "beside"
   ]);
 
   // Check if current word is "even" and is followed by a conjunction, relative pronoun, or preposition
   if (cleanWord === "even" && index < words.length - 1) {
     const nextWord = words[index + 1].toLowerCase().replace(/[^\w]/g, "");
-    if (conjunctions.has(nextWord) || relativePronouns.has(nextWord)) {
+    if (conjunctions.has(nextWord) || relativePronouns.has(nextWord) || prepositions.has(nextWord)) {
       return true;
-    }
-    if (prepositions.has(nextWord)) {
-      // Check if the preposition starts a phrase of 3+ words
-      let phraseLength = 0;
-      for (let i = index + 1; i < Math.min(index + 5, words.length); i++) {
-        const checkWord = words[i].toLowerCase().replace(/[^\w]/g, "");
-        if (
-          functionWords.has(checkWord) ||
-          prepositions.has(checkWord) ||
-          checkWord.length > 0
-        ) {
-          phraseLength++;
-        } else {
-          break;
-        }
-      }
-      if (phraseLength >= 3) {
-        return true;
-      }
     }
   }
 
   // Check conjunctions (skip if preceded by "even")
   if (conjunctions.has(cleanWord)) {
-    if (
-      index > 0 &&
-      words[index - 1].toLowerCase().replace(/[^\w]/g, "") === "even"
-    ) {
+    if (index > 0 && words[index - 1].toLowerCase().replace(/[^\w]/g, "") === "even") {
       return false;
     }
     return true;
@@ -962,10 +841,7 @@ function shouldAddBreathMarkBefore(word, index, words) {
 
   // Check relative pronouns (skip if preceded by "even")
   if (relativePronouns.has(cleanWord)) {
-    if (
-      index > 0 &&
-      words[index - 1].toLowerCase().replace(/[^\w]/g, "") === "even"
-    ) {
+    if (index > 0 && words[index - 1].toLowerCase().replace(/[^\w]/g, "") === "even") {
       return false;
     }
     return true;
@@ -976,16 +852,7 @@ function shouldAddBreathMarkBefore(word, index, words) {
     // Check if this starts a phrase of 3+ words
     let phraseLength = 0;
     for (let i = index; i < Math.min(index + 4, words.length); i++) {
-      const nextWord = words[i].toLowerCase().replace(/[^\w]/g, "");
-      if (
-        functionWords.has(nextWord) ||
-        prepositions.has(nextWord) ||
-        nextWord.length > 0
-      ) {
-        phraseLength++;
-      } else {
-        break;
-      }
+      phraseLength++;
     }
 
     if (phraseLength >= 3) {
@@ -1169,7 +1036,7 @@ function getSyllableStress(word, syllables, isAcronym = false) {
     }
   }
 
-  // Fallback to original stress detection logic
+  // Fallback to your original stress detection logic
   if (isAcronym) {
     return new Array(syllables.length).fill(3);
   }
@@ -1199,7 +1066,7 @@ function getSyllableStress(word, syllables, isAcronym = false) {
   return stressPattern;
 }
 
-// [Continue with all other original functions: applyStressRules, getSentenceStress, generateDetailedIntonationPath, createSentenceSwoosh, etc.]
+// [Continue with all your other original functions: applyStressRules, getSentenceStress, generateDetailedIntonationPath, createSentenceSwoosh, etc.]
 
 function applyStressRules(word, stressPattern, syllables) {
   const len = syllables.length;
@@ -1501,7 +1368,8 @@ function isCompoundWord(word) {
 }
 
 function handleCompoundStress(word, stressPattern, syllables) {
-  // Default to first part stress (Rule 9 - compound nouns)
+  // For now, default to first part stress (Rule 9 - compound nouns)
+  // This is simplified - ideally you'd determine part of speech
   stressPattern[0] = 3;
   return true;
 }
@@ -1551,52 +1419,73 @@ function getSentenceStress(word, position, totalWords, intonationType, posMap) {
 
   return sentenceStress;
 }
-
 function getPOSBasedStressFromMap(word, posMap) {
   if (!word || word.length === 0) return 0;
 
   const lowerWord = word.toLowerCase();
   
-
-  // Check function words first
+  // Special cases: negative/quantifier words always get primary stress
+  const emphasizedWords = new Set(["not", "never", "no", "none", "many", "much", "all", "nobody", "nothing", "every", "everything", "everyone", "everybody", "each", "always"]);
+  if (emphasizedWords.has(lowerWord)) return 3;
+  
+  // Wh-words at sentence start (capitalized) get primary stress
+  const whWords = new Set(["who", "what", "where", "when", "why", "how", "which", "whose"]);
+  if (whWords.has(lowerWord) && word[0] === word[0].toUpperCase()) {
+    return 3;
+  }
+  
+  // Check function words first (before capitalization check)
   if (functionWords.has(lowerWord)) return 0;
-
-  // Check auxiliaries
+  
+  // Modal verbs get secondary stress (level 2)
+  const modals = new Set([
+    "can", "cannot", "can't", "could", "couldn't", "could've",
+    "may", "might", "mightn't", "might've",
+    "will", "won't", "would", "wouldn't", "would've",
+    "shall", "shan't", "should", "shouldn't", "should've",
+    "must", "mustn't", "must've"
+  ]);
+  if (modals.has(lowerWord)) return 2;
+  
+  // Other auxiliaries get no stress (level 0)
   const auxiliaries = new Set([
-    "is",
-    "am",
-    "are",
-    "was",
-    "were",
-    "be",
-    "been",
-    "being",
-    "have",
-    "has",
-    "had",
-    "do",
-    "does",
-    "did",
-    "will",
-    "would",
-    "could",
-    "should",
-    "may",
-    "might",
-    "must",
-    "can"
+    "is", "isn't", "am", "are", "aren't", "was", "wasn't", "were", "weren't",
+    "be", "been", "being",
+    "have", "haven't", "has", "hasn't", "had", "hadn't",
+    "do", "don't", "does", "doesn't", "did", "didn't"
   ]);
   if (auxiliaries.has(lowerWord)) return 0;
 
+  // Capitalized words that aren't function words (likely proper nouns) get primary stress
+  if (word[0] === word[0].toUpperCase() && word[0] !== word[0].toLowerCase()) {
+    return 3;
+  }
+
   // Get POS from map
   const pos = posMap.get(lowerWord);
-
-// Numbers always get primary stress
-if (pos === "number") return 3;
+  
+  if (pos === "number") return 3;
   if (pos === "noun" || pos === "verb") return 3;
   if (pos === "adjective" || pos === "adverb") return 2;
   if (pos === "pronoun") return 1;
   if (pos === "preposition" || pos === "conjunction") return 0;
+
+  // Suffix-based fallback for sentence stress
+  
+  // Noun suffixes -> primary stress (3)
+  if (lowerWord.match(/(tion|sion|ness|ment|ance|ence|ancy|ency|ity|ty|ism|ist|er|or|age|ure|ship|hood|dom|tude|ery|ary|ory|ant|ent|logy|gy|metry|graphy|phy|ics|cy|ade|ette|let|ee|eer)$/)) {
+    return 3;
+  }
+  
+  // Verb suffixes and roots -> primary stress (3)
+  if (lowerWord.match(/(ate|ify|ifies|ize|ise|yze|yse|en|ail|are|ease|ply|plies|tain|vide|duce|ceive|port|strict|struct|gress|press|tract|spect|flect|cede|pose|move|prove|serve|solve|volve|pend|tend|mend|fend|scend|ult|ect|ire)$/)) {
+    return 3;
+  }
+  
+  // Adjective/Adverb suffixes -> secondary stress (2)
+  if (lowerWord.match(/(ive|ous|ful|less|able|ible|al|ic|ly|ish|like|some|ward|wards|wise|proof|worthy|wide)$/)) {
+    return 2;
+  }
 
   // Default: if not in function words and not identified, give weak stress
   return 1;
@@ -1715,7 +1604,7 @@ function generateDetailedIntonationPath(
 }
 
 function getSentenceContour(position, totalWords, intonationType) {
-  return 0; 
+  return 0; // No adjustment to word stress lines
 }
 
 function createSentenceSwoosh(
@@ -1725,7 +1614,7 @@ function createSentenceSwoosh(
   totalWords,
   intonationType
 ) {
-  // For now, only add swoosh to the last word in the sentence
+  // Only add swoosh to the last word in the sentence
   if (position < totalWords - 1) {
     return;
   }
